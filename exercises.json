@@ -1,0 +1,521 @@
+{
+  "schemaVersion": "1.0",
+  "_readme": "Form-check exercise library. Each exercise carries plain-language cues (always shown) and, when autoCheck=true, declarative RULES the rule engine can evaluate from 2D pose landmarks. Cues were synthesised in our own words from reputable, clinician- or coach-authored sources (see each exercise's `sources`). This is a thoroughly specified STARTER set covering the reliably pose-checkable core movements; extend toward 100 using the same schema and sourcing rules described in the Claude Code prompt. Do NOT paste verbatim transcript text into this file.",
+
+  "landmarks": "Semantic names map to MediaPipe Pose 33-landmark indices in code: nose=0, L/R shoulder=11/12, L/R elbow=13/14, L/R wrist=15/16, L/R hip=23/24, L/R knee=25/26, L/R ankle=27/28, L/R heel=29/30, L/R footIndex=31/32.",
+
+  "metricVocabulary": {
+    "jointAngle": "Angle (deg) at vertex B for points [A,B,C]. e.g. knee = [hip,knee,ankle].",
+    "segmentVsVertical": "Angle (deg) of segment [A,B] from true vertical. 0 = perfectly upright.",
+    "segmentVsHorizontal": "Angle (deg) of segment [A,B] from horizontal. 0 = perfectly level.",
+    "horizontalRatio": "Absolute horizontal distance |x_a - x_b|, normalised by `normalize` length (usually torso = shoulder->hip). Camera-distance invariant.",
+    "verticalRatio": "Absolute vertical distance |y_a - y_b|, normalised by `normalize` length.",
+    "frontSeparationRatio": "Front view only. horizontalDistance(p1a,p1b) / horizontalDistance(p2a,p2b). Used for knee valgus: kneeGap/ankleGap.",
+    "leadRate": "Compares how fast point A rises vs point B during a phase. Positive = A moved up faster than B (used to catch 'hips shoot up first')."
+  },
+
+  "phases": ["descent", "bottom", "ascent", "hold", "whole"],
+  "conditionOps": ["<", "<=", ">", ">=", "between", "outside"],
+  "aggregates": ["min", "max", "mean", "range", "deltaStartEnd"],
+
+  "exercises": [
+    {
+      "id": "bodyweight-squat",
+      "name": "Bodyweight Squat",
+      "aliases": ["air squat", "squat"],
+      "category": "lower-body",
+      "equipment": "bodyweight",
+      "primaryMuscles": ["quadriceps", "glutes"],
+      "cameraView": "side",
+      "altView": "front",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["hip", "knee", "ankle"], "method": "valley", "minProminenceDeg": 25 },
+      "cues": [
+        "Set feet about shoulder width with toes turned out slightly (roughly 11 and 1 o'clock).",
+        "Keep your weight spread across the whole foot — heel, midfoot and ball — rather than rocking onto heels or toes.",
+        "Start the descent by sending the hips back and down at the same time, not by shooting the knees forward.",
+        "Track the knees out over the toes; don't let them collapse inward.",
+        "Keep a braced core and a neutral spine — chest stays up, low back doesn't round or over-arch.",
+        "Drive up by pushing the floor away; let hips and shoulders rise together."
+      ],
+      "rules": [
+        { "id": "depth", "name": "Insufficient depth", "view": "side", "metric": "jointAngle", "points": ["hip", "knee", "ankle"], "condition": { "aggregate": "min", "op": ">", "threshold": 100, "phase": "bottom" }, "severity": "low", "cue": "Aim for thighs closer to parallel if mobility allows — but quality beats forcing depth.", "source": "Squat University" },
+        { "id": "knee-valgus", "name": "Knees caving inward", "view": "front", "metric": "frontSeparationRatio", "points": { "numerator": ["leftKnee", "rightKnee"], "denominator": ["leftAnkle", "rightAnkle"] }, "condition": { "aggregate": "min", "op": "<", "threshold": 0.85, "phase": "whole" }, "severity": "high", "cue": "Think 'spread the floor' — drive the knees out to track over the toes.", "source": "Squat University" },
+        { "id": "hips-shoot-up", "name": "Hips rise faster than shoulders", "view": "side", "metric": "leadRate", "points": { "fast": "hip", "slow": "shoulder" }, "condition": { "aggregate": "max", "op": ">", "threshold": 1.4, "phase": "ascent" }, "severity": "high", "cue": "Drive hips and chest up together — if the hips shoot up first the load dumps onto your lower back.", "source": "Squat University" },
+        { "id": "trunk-collapse", "name": "Excessive forward lean / rounding", "view": "side", "metric": "segmentVsVertical", "points": ["shoulder", "hip"], "condition": { "aggregate": "max", "op": ">", "threshold": 60, "phase": "whole" }, "severity": "medium", "cue": "Keep the chest up and brace harder; a big forward tip usually means the core gave way.", "source": "Squat University" }
+      ],
+      "sources": [
+        { "name": "Squat University (Dr. Aaron Horschig, PT, DPT, CSCS)", "url": "https://squatuniversity.com/2016/02/05/how-to-teach-a-perfect-squat/" },
+        { "name": "PLT4M – Proper Air Squat Form", "url": "https://plt4m.com/blog/proper-air-squat-form/" }
+      ]
+    },
+
+    {
+      "id": "back-squat",
+      "name": "Barbell Back Squat",
+      "aliases": ["high bar squat", "low bar squat"],
+      "category": "lower-body",
+      "equipment": "barbell",
+      "primaryMuscles": ["quadriceps", "glutes", "spinal erectors"],
+      "cameraView": "side",
+      "altView": "front",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["hip", "knee", "ankle"], "method": "valley", "minProminenceDeg": 25 },
+      "cues": [
+        "Pin the bar tightly to the shelf of your upper back; build a stable tripod foot.",
+        "Take a big breath and brace the trunk hard before you unrack and before each rep.",
+        "Initiate with a hip hinge to load the posterior chain, keeping the bar over your midfoot the whole way.",
+        "Generate external-rotation torque at the hips — cue 'squeeze the glutes / knees out to the toes'.",
+        "Stand up by driving the hips, not by letting them shoot up while the chest folds forward.",
+        "Better a slightly higher rep with clean alignment than a deep rep that rounds the back."
+      ],
+      "rules": [
+        { "id": "knee-valgus", "name": "Knees caving inward", "view": "front", "metric": "frontSeparationRatio", "points": { "numerator": ["leftKnee", "rightKnee"], "denominator": ["leftAnkle", "rightAnkle"] }, "condition": { "aggregate": "min", "op": "<", "threshold": 0.85, "phase": "whole" }, "severity": "high", "cue": "Drive the knees out to track over the toes; strengthen glutes/hips for stability.", "source": "Squat University" },
+        { "id": "hips-shoot-up", "name": "Hips rise faster than shoulders", "view": "side", "metric": "leadRate", "points": { "fast": "hip", "slow": "shoulder" }, "condition": { "aggregate": "max", "op": ">", "threshold": 1.4, "phase": "ascent" }, "severity": "high", "cue": "Keep hips and chest rising together; hips shooting up shifts load to the lower back.", "source": "Squat University" },
+        { "id": "back-round", "name": "Lower back rounding at the bottom", "view": "side", "metric": "segmentVsVertical", "points": ["shoulder", "hip"], "condition": { "aggregate": "deltaStartEnd", "op": ">", "threshold": 25, "phase": "bottom" }, "severity": "high", "cue": "Brace harder and stop just above the depth where your back loses its neutral arch.", "source": "Squat University" }
+      ],
+      "sources": [
+        { "name": "Squat University – How to Perfect the High-Bar Back Squat (Dr. Aaron Horschig, PT, DPT, CSCS)", "url": "https://squatuniversity.com/2016/03/18/how-to-perfect-the-high-bar-back-squat-2/" }
+      ]
+    },
+
+    {
+      "id": "goblet-squat",
+      "name": "Goblet Squat",
+      "aliases": [],
+      "category": "lower-body",
+      "equipment": "dumbbell",
+      "primaryMuscles": ["quadriceps", "glutes"],
+      "cameraView": "side",
+      "altView": "front",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["hip", "knee", "ankle"], "method": "valley", "minProminenceDeg": 25 },
+      "cues": [
+        "Hold the weight close to your chest with elbows tucked; this helps keep the torso upright.",
+        "Same rules as the bodyweight squat: hips back and down together, knees over toes, whole-foot contact.",
+        "Let the elbows pass inside the knees at the bottom without the back rounding."
+      ],
+      "rules": [
+        { "id": "knee-valgus", "name": "Knees caving inward", "view": "front", "metric": "frontSeparationRatio", "points": { "numerator": ["leftKnee", "rightKnee"], "denominator": ["leftAnkle", "rightAnkle"] }, "condition": { "aggregate": "min", "op": "<", "threshold": 0.85, "phase": "whole" }, "severity": "high", "cue": "Drive the knees out over the toes.", "source": "Squat University" },
+        { "id": "trunk-collapse", "name": "Excessive forward lean", "view": "side", "metric": "segmentVsVertical", "points": ["shoulder", "hip"], "condition": { "aggregate": "max", "op": ">", "threshold": 50, "phase": "whole" }, "severity": "medium", "cue": "Keep the weight against the chest and stay tall; a big lean means you're losing the brace.", "source": "Squat University" }
+      ],
+      "sources": [
+        { "name": "Squat University (Dr. Aaron Horschig, PT, DPT, CSCS)", "url": "https://squatuniversity.com/2016/02/05/how-to-teach-a-perfect-squat/" }
+      ]
+    },
+
+    {
+      "id": "romanian-deadlift",
+      "name": "Romanian Deadlift (RDL)",
+      "aliases": ["rdl", "stiff leg deadlift"],
+      "category": "lower-body",
+      "equipment": "barbell-or-dumbbell",
+      "primaryMuscles": ["hamstrings", "glutes", "spinal erectors"],
+      "cameraView": "side",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["shoulder", "hip", "knee"], "method": "valley", "minProminenceDeg": 30 },
+      "cues": [
+        "Soft knees only — a slight, fixed bend of about 15–25 degrees; this is a hinge, not a squat.",
+        "Push the hips straight back to lower the weight; the bar/dumbbells track close to the legs the whole way.",
+        "Keep a long, neutral spine — chest proud, lats engaged; don't let the upper back round as you descend.",
+        "Lower until you feel a hamstring stretch (usually mid-shin) without the back rounding, then drive the hips forward to stand.",
+        "Finish tall by squeezing the glutes; don't over-arch or lean back at the top."
+      ],
+      "rules": [
+        { "id": "knees-bending", "name": "Squatting instead of hinging", "view": "side", "metric": "jointAngle", "points": ["hip", "knee", "ankle"], "condition": { "aggregate": "min", "op": "<", "threshold": 140, "phase": "descent" }, "severity": "high", "cue": "Keep the knees softly fixed and send the hips back — if the knees keep bending you're turning it into a squat.", "source": "biomechanics consensus" },
+        { "id": "back-round", "name": "Lower/upper back rounding", "view": "side", "metric": "segmentVsHorizontal", "points": ["shoulder", "hip"], "condition": { "aggregate": "min", "op": "<", "threshold": 8, "phase": "bottom" }, "severity": "high", "cue": "Stop the descent where your spine can stay neutral; brace the lats and keep the chest long.", "source": "biomechanics consensus" },
+        { "id": "bar-drift", "name": "Weight drifting away from the legs", "view": "side", "metric": "horizontalRatio", "points": ["wrist", "knee"], "normalize": "torso", "condition": { "aggregate": "max", "op": ">", "threshold": 0.35, "phase": "whole" }, "severity": "medium", "cue": "Keep the bar/dumbbells brushing close to the thighs and shins; drift adds load to the lower back.", "source": "biomechanics consensus" },
+        { "id": "hips-shoot-up", "name": "Hips rise before the bar", "view": "side", "metric": "leadRate", "points": { "fast": "hip", "slow": "shoulder" }, "condition": { "aggregate": "max", "op": ">", "threshold": 1.5, "phase": "ascent" }, "severity": "medium", "cue": "Drive hips forward and bring the chest up together rather than letting the hips outrun the torso.", "source": "biomechanics consensus" }
+      ],
+      "sources": [
+        { "name": "Synthesised from hip-hinge biomechanics guidance (Squat University / clinician-authored hinge tutorials)", "url": "https://squatuniversity.com/" }
+      ]
+    },
+
+    {
+      "id": "conventional-deadlift",
+      "name": "Conventional Deadlift",
+      "aliases": ["deadlift"],
+      "category": "lower-body",
+      "equipment": "barbell",
+      "primaryMuscles": ["glutes", "hamstrings", "spinal erectors", "lats"],
+      "cameraView": "side",
+      "autoCheck": true,
+      "repSignal": { "metric": "verticalRatio", "points": ["wrist", "ankle"], "method": "peak", "minProminenceDeg": 0 },
+      "cues": [
+        "Set the bar over your midfoot; hips higher than the knees, shoulders just in front of the bar.",
+        "Take a big breath, brace, and set a neutral spine before the bar leaves the floor.",
+        "Push the floor away and keep the bar dragging close to your legs in a near-vertical path.",
+        "Hips and shoulders rise together off the floor — don't let the hips shoot up and turn it into a stiff-legged pull.",
+        "Lock out by standing tall and squeezing glutes; don't hyperextend or lean back."
+      ],
+      "rules": [
+        { "id": "back-round", "name": "Back rounding at the start", "view": "side", "metric": "segmentVsHorizontal", "points": ["shoulder", "hip"], "condition": { "aggregate": "min", "op": "<", "threshold": 5, "phase": "ascent" }, "severity": "high", "cue": "Reset with a neutral spine and brace before pulling; lighten the load if you can't hold it.", "source": "biomechanics consensus" },
+        { "id": "hips-shoot-up", "name": "Hips shoot up first", "view": "side", "metric": "leadRate", "points": { "fast": "hip", "slow": "shoulder" }, "condition": { "aggregate": "max", "op": ">", "threshold": 1.5, "phase": "ascent" }, "severity": "high", "cue": "Push the floor away so hips and chest rise together.", "source": "biomechanics consensus" },
+        { "id": "bar-drift", "name": "Bar drifting forward", "view": "side", "metric": "horizontalRatio", "points": ["wrist", "knee"], "normalize": "torso", "condition": { "aggregate": "max", "op": ">", "threshold": 0.3, "phase": "whole" }, "severity": "medium", "cue": "Keep the bar against your legs; engage the lats to pull it back toward you.", "source": "biomechanics consensus" }
+      ],
+      "sources": [
+        { "name": "Synthesised from clinician/coach deadlift tutorials (Squat University, Barbell Logic)", "url": "https://squatuniversity.com/" }
+      ]
+    },
+
+    {
+      "id": "forward-lunge",
+      "name": "Forward Lunge",
+      "aliases": ["lunge"],
+      "category": "lower-body",
+      "equipment": "bodyweight-or-dumbbell",
+      "primaryMuscles": ["quadriceps", "glutes"],
+      "cameraView": "side",
+      "altView": "front",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["hip", "knee", "ankle"], "side": "front-leg", "method": "valley", "minProminenceDeg": 30 },
+      "cues": [
+        "Step out and lower straight down so the front thigh reaches roughly parallel and the front shin stays fairly vertical.",
+        "Keep the torso tall and core braced; avoid pitching the chest forward over the knee.",
+        "Track the front knee over the toes — don't let it cave inward.",
+        "Push back through the front heel to return; keep control rather than collapsing into the bottom."
+      ],
+      "rules": [
+        { "id": "front-knee-depth", "name": "Shallow front-knee bend", "view": "side", "metric": "jointAngle", "points": ["hip", "knee", "ankle"], "condition": { "aggregate": "min", "op": ">", "threshold": 110, "phase": "bottom" }, "severity": "low", "cue": "Lower until the front thigh is about parallel, if your knee is pain-free.", "source": "general coaching consensus" },
+        { "id": "knee-valgus", "name": "Front knee caving in", "view": "front", "metric": "frontSeparationRatio", "points": { "numerator": ["leftKnee", "rightKnee"], "denominator": ["leftAnkle", "rightAnkle"] }, "condition": { "aggregate": "min", "op": "<", "threshold": 0.8, "phase": "whole" }, "severity": "high", "cue": "Drive the front knee out to stay stacked over the foot.", "source": "general coaching consensus" },
+        { "id": "torso-pitch", "name": "Torso pitching forward", "view": "side", "metric": "segmentVsVertical", "points": ["shoulder", "hip"], "condition": { "aggregate": "max", "op": ">", "threshold": 35, "phase": "whole" }, "severity": "medium", "cue": "Stay tall through the torso and brace; leaning forward overloads the lower back.", "source": "general coaching consensus" }
+      ],
+      "sources": [
+        { "name": "General strength-coaching consensus (NASM/ACE-style cueing)", "url": "https://www.acefitness.org/" }
+      ]
+    },
+
+    {
+      "id": "bulgarian-split-squat",
+      "name": "Bulgarian Split Squat",
+      "aliases": ["bss", "rear foot elevated split squat"],
+      "category": "lower-body",
+      "equipment": "bodyweight-or-dumbbell",
+      "primaryMuscles": ["quadriceps", "glutes"],
+      "cameraView": "side",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["hip", "knee", "ankle"], "side": "front-leg", "method": "valley", "minProminenceDeg": 30 },
+      "cues": [
+        "Set the front foot far enough forward that the shin stays near vertical at the bottom.",
+        "Lower straight down with a tall, slightly forward-inclined torso and braced core.",
+        "Keep the front knee tracking over the toes; don't let it dive inward.",
+        "Drive through the front heel and the mid-foot to stand."
+      ],
+      "rules": [
+        { "id": "knee-valgus", "name": "Front knee caving in", "view": "front", "metric": "frontSeparationRatio", "points": { "numerator": ["leftKnee", "rightKnee"], "denominator": ["leftAnkle", "rightAnkle"] }, "condition": { "aggregate": "min", "op": "<", "threshold": 0.8, "phase": "whole" }, "severity": "high", "cue": "Press the front knee out over the foot.", "source": "general coaching consensus" },
+        { "id": "depth", "name": "Shallow depth", "view": "side", "metric": "jointAngle", "points": ["hip", "knee", "ankle"], "condition": { "aggregate": "min", "op": ">", "threshold": 110, "phase": "bottom" }, "severity": "low", "cue": "Aim for front thigh near parallel if pain-free.", "source": "general coaching consensus" }
+      ],
+      "sources": [
+        { "name": "General strength-coaching consensus", "url": "https://www.acefitness.org/" }
+      ]
+    },
+
+    {
+      "id": "glute-bridge",
+      "name": "Glute Bridge",
+      "aliases": [],
+      "category": "lower-body",
+      "equipment": "bodyweight",
+      "primaryMuscles": ["glutes", "hamstrings"],
+      "cameraView": "side",
+      "autoCheck": true,
+      "repSignal": { "metric": "segmentVsHorizontal", "points": ["shoulder", "hip"], "method": "peak", "minProminenceDeg": 10 },
+      "cues": [
+        "Feet flat, heels fairly close to the hips; press through the heels.",
+        "Squeeze the glutes to lift the hips until shoulder–hip–knee form a straight line.",
+        "Stop at a neutral plank at the top — don't hyperextend the lower back to go higher.",
+        "Keep the rib cage down and core gently braced; the glutes do the work, not the low back."
+      ],
+      "rules": [
+        { "id": "low-back-hyperextend", "name": "Over-arching at the top", "view": "side", "metric": "jointAngle", "points": ["shoulder", "hip", "knee"], "condition": { "aggregate": "max", "op": ">", "threshold": 195, "phase": "hold" }, "severity": "medium", "cue": "Stop at a straight line; arching past neutral loads the lower back instead of the glutes.", "source": "general coaching consensus" },
+        { "id": "incomplete-extension", "name": "Hips not fully extending", "view": "side", "metric": "jointAngle", "points": ["shoulder", "hip", "knee"], "condition": { "aggregate": "max", "op": "<", "threshold": 160, "phase": "hold" }, "severity": "low", "cue": "Squeeze the glutes harder to bring the hips up to a neutral line.", "source": "general coaching consensus" }
+      ],
+      "sources": [
+        { "name": "General strength-coaching consensus", "url": "https://www.acefitness.org/" }
+      ]
+    },
+
+    {
+      "id": "hip-thrust",
+      "name": "Barbell Hip Thrust",
+      "aliases": [],
+      "category": "lower-body",
+      "equipment": "barbell",
+      "primaryMuscles": ["glutes", "hamstrings"],
+      "cameraView": "side",
+      "autoCheck": true,
+      "repSignal": { "metric": "segmentVsHorizontal", "points": ["shoulder", "hip"], "method": "peak", "minProminenceDeg": 10 },
+      "cues": [
+        "Upper back on the bench, chin tucked, ribs down; shins vertical at the top.",
+        "Drive through the heels and squeeze the glutes to a neutral, flat top position.",
+        "Stop at a straight torso-to-thigh line — don't arch the lower back to chase range.",
+        "Lower under control; keep a posterior pelvic tilt cue to keep the glutes loaded."
+      ],
+      "rules": [
+        { "id": "low-back-hyperextend", "name": "Over-arching / ribs flaring at the top", "view": "side", "metric": "jointAngle", "points": ["shoulder", "hip", "knee"], "condition": { "aggregate": "max", "op": ">", "threshold": 195, "phase": "hold" }, "severity": "high", "cue": "Tuck the ribs and stop at a flat top; hyperextension turns this into a lower-back exercise.", "source": "general coaching consensus" },
+        { "id": "incomplete-lockout", "name": "Incomplete hip lockout", "view": "side", "metric": "jointAngle", "points": ["shoulder", "hip", "knee"], "condition": { "aggregate": "max", "op": "<", "threshold": 165, "phase": "hold" }, "severity": "low", "cue": "Finish each rep with a full glute squeeze to a neutral line.", "source": "general coaching consensus" }
+      ],
+      "sources": [
+        { "name": "General strength-coaching consensus", "url": "https://www.acefitness.org/" }
+      ]
+    },
+
+    {
+      "id": "wall-sit",
+      "name": "Wall Sit",
+      "aliases": [],
+      "category": "lower-body",
+      "equipment": "bodyweight",
+      "primaryMuscles": ["quadriceps"],
+      "cameraView": "side",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["hip", "knee", "ankle"], "method": "hold" },
+      "cues": [
+        "Slide down a wall until thighs are about parallel and knees are near 90 degrees.",
+        "Keep shins vertical (knees stacked over ankles) and the whole back flat against the wall.",
+        "Brace the core; hold without letting the hips creep up over time."
+      ],
+      "rules": [
+        { "id": "knee-angle-hold", "name": "Thighs not parallel", "view": "side", "metric": "jointAngle", "points": ["hip", "knee", "ankle"], "condition": { "aggregate": "mean", "op": "outside", "threshold": [80, 100], "phase": "hold" }, "severity": "low", "cue": "Adjust until the knees sit close to 90 degrees with thighs parallel to the floor.", "source": "general coaching consensus" }
+      ],
+      "sources": [
+        { "name": "General strength-coaching consensus", "url": "https://www.acefitness.org/" }
+      ]
+    },
+
+    {
+      "id": "push-up",
+      "name": "Push-Up",
+      "aliases": ["pushup", "press up"],
+      "category": "upper-push",
+      "equipment": "bodyweight",
+      "primaryMuscles": ["chest", "triceps", "shoulders", "core"],
+      "cameraView": "side",
+      "altView": "45",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["shoulder", "elbow", "wrist"], "method": "valley", "minProminenceDeg": 30 },
+      "cues": [
+        "Hands roughly under the shoulders, wrists stacked under shoulders from the side view.",
+        "Keep the body in one straight line from shoulders through hips to ankles — no sagging hips or piked hips.",
+        "Let the elbows travel back at about a 30–45 degree angle from the torso, not flared straight out.",
+        "Lower until the chest is near the floor while keeping the body flat like a board.",
+        "Keep the neck neutral — eyes down and slightly ahead, don't crane the head to reach the floor."
+      ],
+      "rules": [
+        { "id": "hips-sag", "name": "Hips sagging (low back extends)", "view": "side", "metric": "jointAngle", "points": ["shoulder", "hip", "ankle"], "condition": { "aggregate": "max", "op": ">", "threshold": 195, "phase": "whole" }, "severity": "high", "cue": "Brace the core and squeeze the glutes to keep a straight plank line.", "source": "Physical therapist guidance" },
+        { "id": "hips-pike", "name": "Hips piked up", "view": "side", "metric": "jointAngle", "points": ["shoulder", "hip", "ankle"], "condition": { "aggregate": "min", "op": "<", "threshold": 160, "phase": "whole" }, "severity": "medium", "cue": "Lower the hips into line; piking shifts the work off the chest.", "source": "Physical therapist guidance" },
+        { "id": "depth", "name": "Not lowering far enough", "view": "side", "metric": "jointAngle", "points": ["shoulder", "elbow", "wrist"], "condition": { "aggregate": "min", "op": ">", "threshold": 100, "phase": "bottom" }, "severity": "low", "cue": "Lower until the elbows reach roughly 90 degrees / chest near the floor.", "source": "Physical therapist guidance" }
+      ],
+      "sources": [
+        { "name": "Peak Endurance Physical Therapy – Proper Push-Up Form", "url": "https://peakendurancept.com/proper-push-up-form/" },
+        { "name": "House of Physical Therapy – Push-Up Form", "url": "https://www.houseofphysicaltherapy.com/" }
+      ]
+    },
+
+    {
+      "id": "overhead-press",
+      "name": "Standing Overhead Press",
+      "aliases": ["ohp", "military press", "strict press"],
+      "category": "upper-push",
+      "equipment": "barbell-or-dumbbell",
+      "primaryMuscles": ["shoulders", "triceps", "upper chest", "core"],
+      "cameraView": "side",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["hip", "shoulder", "elbow"], "method": "peak", "minProminenceDeg": 30 },
+      "cues": [
+        "Bar/dumbbells start at the front of the shoulders; forearms vertical from the side view.",
+        "Squeeze the glutes and brace the abs hard before each rep to lock the pelvis and prevent back arch.",
+        "Press in a vertical line over the crown of the head; move the head back slightly so the bar passes the face, then bring the torso through.",
+        "Finish locked out with the weight stacked over the shoulders and midfoot; shrug slightly at the top.",
+        "Keep the knees and hips locked — no leg drive on a strict press."
+      ],
+      "rules": [
+        { "id": "back-arch", "name": "Excessive lower-back arch / leaning back", "view": "side", "metric": "segmentVsVertical", "points": ["shoulder", "hip"], "condition": { "aggregate": "max", "op": ">", "threshold": 18, "phase": "ascent" }, "severity": "high", "cue": "Squeeze the glutes and brace harder to keep the torso upright; if you still arch, the weight is too heavy.", "source": "Multiple coaching sources (Stronglifts, BarBend)" },
+        { "id": "incomplete-lockout", "name": "Not locking out overhead", "view": "side", "metric": "jointAngle", "points": ["hip", "shoulder", "elbow"], "condition": { "aggregate": "max", "op": "<", "threshold": 160, "phase": "hold" }, "severity": "low", "cue": "Press all the way to a stacked lockout with the arms by the ears.", "source": "Multiple coaching sources" },
+        { "id": "knee-drive", "name": "Bending the knees (turning it into a push press)", "view": "side", "metric": "jointAngle", "points": ["hip", "knee", "ankle"], "condition": { "aggregate": "min", "op": "<", "threshold": 160, "phase": "ascent" }, "severity": "medium", "cue": "Keep hips and knees locked on a strict press so the shoulders do the work.", "source": "Multiple coaching sources" }
+      ],
+      "sources": [
+        { "name": "Stronglifts – Overhead Press guide", "url": "https://stronglifts.com/overhead-press/" },
+        { "name": "BarBend – Overhead Press Mistakes and Fixes", "url": "https://barbend.com/overhead-press-mistakes-fixes/" }
+      ]
+    },
+
+    {
+      "id": "dumbbell-lateral-raise",
+      "name": "Dumbbell Lateral Raise",
+      "aliases": ["lateral raise", "side raise"],
+      "category": "upper-push",
+      "equipment": "dumbbell",
+      "primaryMuscles": ["lateral deltoid"],
+      "cameraView": "front",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["hip", "shoulder", "elbow"], "method": "peak", "minProminenceDeg": 25 },
+      "cues": [
+        "Slight bend in the elbows held constant; raise from the shoulders, not by swinging.",
+        "Lift to about shoulder height (arms roughly parallel to the floor) — no higher is needed.",
+        "Lead with the elbows, keeping wrists from rising above them.",
+        "Control the lowering; avoid using momentum or a torso heave to start the rep."
+      ],
+      "rules": [
+        { "id": "over-raise", "name": "Raising well above shoulder height", "view": "front", "metric": "jointAngle", "points": ["hip", "shoulder", "elbow"], "condition": { "aggregate": "max", "op": ">", "threshold": 110, "phase": "hold" }, "severity": "low", "cue": "Stop around shoulder height; going much higher shrugs the traps in.", "source": "general coaching consensus" },
+        { "id": "torso-swing", "name": "Swinging the torso for momentum", "view": "front", "metric": "segmentVsVertical", "points": ["shoulder", "hip"], "condition": { "aggregate": "range", "op": ">", "threshold": 12, "phase": "whole" }, "severity": "medium", "cue": "Keep the torso still; if you're rocking to lift, lighten the dumbbells.", "source": "general coaching consensus" }
+      ],
+      "sources": [
+        { "name": "General strength-coaching consensus", "url": "https://www.acefitness.org/" }
+      ]
+    },
+
+    {
+      "id": "bent-over-row",
+      "name": "Bent-Over Row",
+      "aliases": ["barbell row", "dumbbell row"],
+      "category": "upper-pull",
+      "equipment": "barbell-or-dumbbell",
+      "primaryMuscles": ["lats", "mid-back", "biceps"],
+      "cameraView": "side",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["shoulder", "elbow", "wrist"], "method": "valley", "minProminenceDeg": 25 },
+      "cues": [
+        "Hinge to a flat, braced torso — roughly 15–45 degrees above horizontal — and hold that angle throughout.",
+        "Pull the elbows back and toward the ribs, bringing the weight to the lower ribs / belly.",
+        "Squeeze the shoulder blades back and down; avoid shrugging up toward the ears.",
+        "Don't heave with the lower back or stand up to move the weight — the torso angle stays fixed."
+      ],
+      "rules": [
+        { "id": "torso-heave", "name": "Standing up / torso rising to lift", "view": "side", "metric": "segmentVsHorizontal", "points": ["shoulder", "hip"], "condition": { "aggregate": "range", "op": ">", "threshold": 20, "phase": "whole" }, "severity": "high", "cue": "Lock the torso angle and move only the arms; if the torso rises with each rep, lighten the load.", "source": "general coaching consensus" },
+        { "id": "back-round", "name": "Back rounding under load", "view": "side", "metric": "segmentVsHorizontal", "points": ["shoulder", "hip"], "condition": { "aggregate": "min", "op": "<", "threshold": 10, "phase": "whole" }, "severity": "high", "cue": "Reset to a neutral, braced spine before rowing.", "source": "general coaching consensus" }
+      ],
+      "sources": [
+        { "name": "General strength-coaching consensus", "url": "https://www.acefitness.org/" }
+      ]
+    },
+
+    {
+      "id": "bicep-curl",
+      "name": "Dumbbell Biceps Curl",
+      "aliases": ["curl", "bicep curl"],
+      "category": "upper-pull",
+      "equipment": "dumbbell-or-barbell",
+      "primaryMuscles": ["biceps"],
+      "cameraView": "side",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["shoulder", "elbow", "wrist"], "method": "valley", "minProminenceDeg": 40 },
+      "cues": [
+        "Keep the upper arms pinned by your sides; the elbows stay roughly fixed in place.",
+        "Curl by bending only at the elbow; don't swing the weights up with the shoulders or torso.",
+        "Control the lowering through a full range to near-straight arms.",
+        "Keep the torso upright and still — no leaning back to heave the weight."
+      ],
+      "rules": [
+        { "id": "elbow-drift", "name": "Elbows swinging forward", "view": "side", "metric": "horizontalRatio", "points": ["elbow", "shoulder"], "normalize": "torso", "condition": { "aggregate": "max", "op": ">", "threshold": 0.4, "phase": "ascent" }, "severity": "medium", "cue": "Keep the elbows pinned at your sides; let the elbow joint do the work.", "source": "general coaching consensus" },
+        { "id": "torso-swing", "name": "Swinging the torso", "view": "side", "metric": "segmentVsVertical", "points": ["shoulder", "hip"], "condition": { "aggregate": "range", "op": ">", "threshold": 12, "phase": "whole" }, "severity": "medium", "cue": "Stand tall and still; if you're rocking to curl, lighten the weight.", "source": "general coaching consensus" },
+        { "id": "partial-rom", "name": "Short range of motion", "view": "side", "metric": "jointAngle", "points": ["shoulder", "elbow", "wrist"], "condition": { "aggregate": "max", "op": "<", "threshold": 150, "phase": "bottom" }, "severity": "low", "cue": "Lower to near-straight arms each rep for full range.", "source": "general coaching consensus" }
+      ],
+      "sources": [
+        { "name": "General strength-coaching consensus", "url": "https://www.acefitness.org/" }
+      ]
+    },
+
+    {
+      "id": "plank",
+      "name": "Front Plank",
+      "aliases": ["plank", "forearm plank"],
+      "category": "core",
+      "equipment": "bodyweight",
+      "primaryMuscles": ["core", "shoulders", "glutes"],
+      "cameraView": "side",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["shoulder", "hip", "ankle"], "method": "hold" },
+      "cues": [
+        "Elbows under the shoulders; body in one straight line from head to heels.",
+        "Brace the core and squeeze the glutes so the hips neither sag nor pike up.",
+        "Keep a neutral neck — gaze just ahead of the hands.",
+        "Breathe steadily; hold quality position rather than maximum time."
+      ],
+      "rules": [
+        { "id": "hips-sag", "name": "Hips sagging", "view": "side", "metric": "jointAngle", "points": ["shoulder", "hip", "ankle"], "condition": { "aggregate": "max", "op": ">", "threshold": 192, "phase": "hold" }, "severity": "high", "cue": "Lift the hips into line and brace; sagging stresses the lower back.", "source": "Physical therapist guidance" },
+        { "id": "hips-pike", "name": "Hips piked up", "view": "side", "metric": "jointAngle", "points": ["shoulder", "hip", "ankle"], "condition": { "aggregate": "min", "op": "<", "threshold": 165, "phase": "hold" }, "severity": "medium", "cue": "Drop the hips to a flat line so the core does the work.", "source": "Physical therapist guidance" }
+      ],
+      "sources": [
+        { "name": "Physical therapist core-stability guidance", "url": "https://www.acefitness.org/" }
+      ]
+    },
+
+    {
+      "id": "side-plank",
+      "name": "Side Plank",
+      "aliases": [],
+      "category": "core",
+      "equipment": "bodyweight",
+      "primaryMuscles": ["obliques", "core", "hips"],
+      "cameraView": "front",
+      "autoCheck": true,
+      "repSignal": { "metric": "segmentVsHorizontal", "points": ["shoulder", "ankle"], "method": "hold" },
+      "cues": [
+        "Elbow under the shoulder; stack the body in a straight diagonal line.",
+        "Lift the hips so the bottom hip doesn't drop toward the floor.",
+        "Keep the core braced and the neck neutral."
+      ],
+      "rules": [
+        { "id": "hip-drop", "name": "Bottom hip dropping", "view": "front", "metric": "segmentVsHorizontal", "points": ["shoulder", "hip"], "condition": { "aggregate": "max", "op": ">", "threshold": 20, "phase": "hold" }, "severity": "high", "cue": "Lift the hips to keep one straight diagonal line from head to feet.", "source": "Physical therapist guidance" }
+      ],
+      "sources": [
+        { "name": "Physical therapist core-stability guidance", "url": "https://www.acefitness.org/" }
+      ]
+    },
+
+    {
+      "id": "bird-dog",
+      "name": "Bird Dog",
+      "aliases": [],
+      "category": "core",
+      "equipment": "bodyweight",
+      "primaryMuscles": ["core", "spinal stabilizers", "glutes"],
+      "cameraView": "side",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["shoulder", "hip", "knee"], "method": "peak", "minProminenceDeg": 20 },
+      "cues": [
+        "From all fours, extend the opposite arm and leg to about parallel with the floor.",
+        "Keep the spine neutral and the hips level — don't rotate or arch the lower back.",
+        "Move slowly with control; brace the core throughout.",
+        "Return without letting the back sag, then switch sides."
+      ],
+      "rules": [
+        { "id": "back-arch", "name": "Lower back over-arching on extension", "view": "side", "metric": "segmentVsHorizontal", "points": ["shoulder", "hip"], "condition": { "aggregate": "max", "op": ">", "threshold": 12, "phase": "hold" }, "severity": "medium", "cue": "Keep the torso flat and level; lift the leg only to hip height, not higher.", "source": "Physical therapist guidance" }
+      ],
+      "sources": [
+        { "name": "Physical therapist core-stability guidance", "url": "https://www.acefitness.org/" }
+      ]
+    },
+
+    {
+      "id": "pull-up",
+      "name": "Pull-Up",
+      "aliases": ["pullup", "chin-up"],
+      "category": "upper-pull",
+      "equipment": "bodyweight",
+      "primaryMuscles": ["lats", "biceps", "mid-back"],
+      "cameraView": "front",
+      "autoCheck": true,
+      "repSignal": { "metric": "jointAngle", "points": ["shoulder", "elbow", "wrist"], "method": "valley", "minProminenceDeg": 35 },
+      "cues": [
+        "Start from a full hang with active shoulders (slight shoulder-blade depression, not fully relaxed).",
+        "Pull the elbows down and back to bring the chin over the bar.",
+        "Avoid big leg kips/swings on a strict pull-up; keep the body controlled.",
+        "Lower under control to a full hang each rep."
+      ],
+      "rules": [
+        { "id": "partial-rom-top", "name": "Chin not clearing the bar", "view": "front", "metric": "jointAngle", "points": ["shoulder", "elbow", "wrist"], "condition": { "aggregate": "min", "op": ">", "threshold": 70, "phase": "bottom" }, "severity": "low", "cue": "Pull until the chin clears the bar for a full rep.", "source": "general coaching consensus" },
+        { "id": "kipping-swing", "name": "Excessive swinging", "view": "front", "metric": "segmentVsVertical", "points": ["shoulder", "hip"], "condition": { "aggregate": "range", "op": ">", "threshold": 20, "phase": "whole" }, "severity": "low", "cue": "Brace the core to reduce swing on a strict pull-up.", "source": "general coaching consensus" }
+      ],
+      "sources": [
+        { "name": "General strength-coaching consensus", "url": "https://www.acefitness.org/" }
+      ]
+    }
+  ],
+
+  "cueOnlyExamples": [
+    "Many common exercises are valuable but hard to evaluate reliably with a single 2D camera (occlusion, lying positions, fine grip/bracing). Ship these as cue-only entries first (autoCheck=false, cues + sources, no rules): bench press, incline press, chest fly, triceps pushdown, skullcrusher, lat pulldown, seated cable row, face pull, shrug, calf raise, leg press, leg extension, leg curl, Russian twist, crunch, sit-up, mountain climber, burpee, kettlebell swing, farmer's carry, Romanian single-leg deadlift, Copenhagen plank, dead bug, hollow hold."
+  ]
+}
