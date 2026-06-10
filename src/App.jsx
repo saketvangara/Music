@@ -16,7 +16,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ width: '100vw', height: '100dvh', overflow: 'hidden', background: '#000' }}>
+    <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#0f0f12' }}>
       {screen === 'picker' ? (
         <ExercisePicker onSelect={handleSelect} />
       ) : (
