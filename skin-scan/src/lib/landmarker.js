@@ -4,7 +4,8 @@
 
 import { FilesetResolver, FaceLandmarker } from '@mediapipe/tasks-vision'
 
-const WASM_PATH = '/wasm'
+// BASE_URL-aware so the app works at a subpath too (e.g. GitHub Pages /music/)
+const WASM_PATH = import.meta.env.BASE_URL + 'wasm'
 
 const MODEL_ASSET_PATH =
   'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'
