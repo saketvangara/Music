@@ -6,9 +6,11 @@
 
 name: Deploy SkinScan to GitHub Pages
 
+# Note: the github-pages environment only allows deployments from master,
+# so feature-branch pushes are not deployed — merge to master to ship.
 on:
   push:
-    branches: [master, claude/face-scan-skincare-app-9tyss6]
+    branches: [master]
     paths:
       - 'skin-scan/**'
       - '.github/workflows/deploy-skinscan-pages.yml'

@@ -3,11 +3,13 @@ import CaptureScreen from './screens/CaptureScreen'
 import AnalyzeScreen from './screens/AnalyzeScreen'
 import ResultsScreen from './screens/ResultsScreen'
 import HistoryScreen from './screens/HistoryScreen'
+import ChatScreen from './screens/ChatScreen'
 import SettingsScreen from './screens/SettingsScreen'
 
 const TABS = [
   { id: 'capture', label: 'Scan', icon: '◉' },
   { id: 'history', label: 'History', icon: '☰' },
+  { id: 'chat', label: 'Coach', icon: '💬' },
   { id: 'settings', label: 'Settings', icon: '⚙' },
 ]
 
@@ -51,6 +53,7 @@ export default function App() {
           <ResultsScreen scan={currentScan} onBack={() => setScreen('history')} />
         )}
         {screen === 'history' && <HistoryScreen onOpenScan={openScan} />}
+        {screen === 'chat' && <ChatScreen onOpenSettings={() => setScreen('settings')} />}
         {screen === 'settings' && <SettingsScreen />}
       </div>
 
